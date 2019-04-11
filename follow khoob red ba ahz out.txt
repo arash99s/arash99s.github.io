@@ -1,0 +1,1677 @@
+/*******************************************************
+This program was created by the
+CodeWizardAVR V3.12 Advanced
+Automatic Program Generator
+© Copyright 1998-2014 Pavel Haiduc, HP InfoTech s.r.l.
+http://www.hpinfotech.com
+
+Project : 
+Version : 
+Date    : 1/18/2017
+Author  : 
+Company : 
+Comments: 
+
+Chip type               : ATmega64
+Program type            : Application
+AVR Core Clock frequency: 16.000000 MHz
+Memory model            : Small
+External RAM size       : 0
+Data Stack size         : 1024
+*******************************************************/
+
+#include <mega64.h>
+#include <delay.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+// I2C Bus functions
+#include <i2c.h>
+//////////////////////////////////
+     
+ #define sw_c  PINE.4
+ #define cmpbus 0xc0
+    int highFlag = 0,highOut=0;
+    float preERROR,Dcmp=0;
+    int outCounter = 0; 
+    int isStopMotor = 0;
+    int tempHighFlag = 0; 
+    int lastSensor = 0;         
+    int time = 0;
+    int er=0,counter=100,timerMakoos=0;
+    float  error = 0;
+    int output = 0;
+    float Sum = 0;
+    double derivative = 0 ,integral = 0;
+    int count=0,sense2=0,s[16],z,sense=0,sensed=0;
+    int maxNum=0,sense3=0,chapkaf=0,rastkaf=0,frontkaf=0,backkaf=0;
+    int chap=0,rast=0,vasat=0,state=0,stategk=0; //ultra
+    int m=0,n=0,preSENSE=1000,R=0,maxValue=0,senseShoot1=0,senseShoot2=0,shootSense=0;
+    int sensek=0,sk[16],ss[16],sss[16],ftime=0,presensek,outPID=0,or=0;//kaf 
+    int step=1,flag=0,zprim=0,beta=0,stime=0,tarafrast=2;   
+    int timer1=0,timer2=0,timershoot=0;
+    int gyro = 0,gyro2 = 0,gyro1 = 0;
+    int stepk=0,ii=0; 
+    static int revFlag = 0,followFlag=0;  
+    eeprom int f[16];
+    eeprom int minSense[16];
+
+//////CMPPPPPPPPPPPPPPPPPPPPPP/////////////////////////////////////////////////////////////////
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+#define EEPROM_BUS_ADDRESS 0xc0 
+     
+    int cmp=0;
+    eeprom int c=0;
+      
+/* read a byte from the EEPROM */
+unsigned char compass_read(unsigned char address)
+{
+    unsigned char data;
+    i2c_start();
+    i2c_write(EEPROM_BUS_ADDRESS);
+    i2c_write(address);
+    i2c_start();
+    i2c_write(EEPROM_BUS_ADDRESS | 1);
+    delay_us(43);
+    data=i2c_read(0);
+    i2c_stop();
+    return data;
+}
+
+unsigned char gyro_read(unsigned char addressg)
+{
+    unsigned char datag;
+    i2c_start();
+    i2c_write(0xd0);
+    i2c_write(addressg);
+    i2c_start();
+    i2c_write(0xd0 | 1);
+    datag = i2c_read(0);
+    i2c_stop();
+    return datag;
+}
+
+// Alphanumeric LCD functions
+#include <alcd.h>
+#include <delay.h>
+// Declare your global variables here
+// Voltage Reference: AVCC pin
+#define ADC_VREF_TYPE ((0<<REFS1) | (1<<REFS0) | (0<<ADLAR))
+
+// Read the AD conversion result
+unsigned int read_adc(unsigned char adc_input)
+{
+#asm("wdr");
+ADMUX=adc_input | ADC_VREF_TYPE;
+// Delay needed for the stabilization of the ADC input voltage
+delay_us(10);
+// Start the AD conversion
+ADCSRA|=(1<<ADSC);
+// Wait for the AD conversion to complete
+while ((ADCSRA & (1<<ADIF))==0);
+ADCSRA|=(1<<ADIF);
+return ADCW;
+}
+
+void LCD(int x, int y, int input)
+{
+    char s[10];
+    lcd_gotoxy(x,y);
+    sprintf(s,"%d " , input);
+    lcd_puts(s);
+}
+
+void eeprom_write(unsigned char address, unsigned char data) 
+{
+    i2c_start();
+    i2c_write(EEPROM_BUS_ADDRESS);
+    i2c_write(address);
+
+    i2c_stop();
+    /* 10ms delay to complete the write operation*/ 
+    delay_ms(10);
+}
+
+void Calibrate()
+{
+       
+    lcd_clear();
+    lcd_putsf("Compass calibration:");
+    lcd_gotoxy(0,1);
+    lcd_putsf("North");
+    delay_ms(100);
+    while (sw_c==0)
+    {
+        #asm("wdr")
+    }
+    delay_ms(100);
+    i2c_start();
+    i2c_write(cmpbus);
+    i2c_write(15);
+    i2c_write(0xff);
+    i2c_stop();
+    #asm("wdr");
+    lcd_clear();
+    lcd_putsf("done");
+    delay_ms(500);
+    lcd_clear();
+    lcd_putsf("East");
+
+
+    while (sw_c==0)
+    {
+        #asm("wdr")
+    }
+    delay_ms(100);
+    i2c_start();
+    i2c_write(cmpbus);
+    i2c_write(15);
+    i2c_write(0xff);
+    i2c_stop();
+    lcd_clear();
+    lcd_putsf("done");
+    delay_ms(500);
+    lcd_clear();
+    lcd_putsf("South");
+
+    while (sw_c==0)
+    {
+        #asm("wdr")
+    }
+    delay_ms(100);
+    i2c_start();
+    i2c_write(cmpbus);
+    i2c_write(15);
+    i2c_write(0xff);
+    i2c_stop();
+    lcd_clear();
+    lcd_putsf("done");
+    delay_ms(500);
+    lcd_clear();
+    lcd_putsf("West");
+
+    while (sw_c==0)
+    {
+        #asm("wdr")
+    }
+    delay_ms(100);
+    i2c_start();
+    i2c_write(cmpbus);
+    i2c_write(15);
+    i2c_write(0xff);
+    i2c_stop();
+    lcd_clear();
+    lcd_putsf("End of calibration");
+    delay_ms(500);
+    lcd_clear();
+}
+
+#define th_err 0
+#define th_err2 0
+#define w_err 0
+
+int PID(double P , double I , double D , int dt , int rangeCMP)
+    {    
+        #asm("wdr");    
+        error = cmp;
+        Sum += error; 
+        if(Sum>100) Sum=100;
+        if(Sum<-100) Sum=-100;
+        output = (P * error) + (D * gyro) + (I * Sum);
+        if(cmp<=rangeCMP && cmp>=-rangeCMP) 
+        {
+         //   output=0;
+            Sum = 0;
+        }         
+        preERROR = error;      
+        return output;                  
+    }
+
+int ML1=0,ML2=0,MR1=0,MR2=0;  
+int pStatic;  
+void motor(int _ML1,int _ML2,int _MR2,int _MR1)
+    {
+         #asm("wdr");
+    /////////////////////////////////////////////////////    
+        if(_ML1==0 && _ML2==0 && _MR2==0 && _MR1==0)
+        {    //Static
+            outPID = pStatic;
+            _ML1 -= outPID;
+            _MR1 -= outPID;
+            _ML2 -= outPID;
+            _MR2 -= outPID;
+
+        }    
+        else
+        {//Dynamic
+            _ML1 -= outPID;
+            _MR1 -= outPID;
+            _ML2 -= outPID;
+            _MR2 -= outPID;
+       
+        }    
+          
+          
+        ML1 = 0*ML1 + 1* _ML1;
+        ML2 = 0*ML2 + 1* _ML2;
+        MR1 = 0*MR1 + 1* _MR1;
+        MR2 = 0*MR2 + 1* _MR2;
+                                 
+        
+         
+        if(ML1>255)       ML1=255;
+        if(ML2>255)       ML2=255;
+        if(MR2>255)       MR2=255;
+        if(MR1>255)       MR1=255;
+                         
+        if(ML1<-255)      ML1=-255;
+        if(ML2<-255)      ML2=-255;
+        if(MR2<-255)      MR2=-255;
+        if(MR1<-255)      MR1=-255;
+    ///////////////////
+        if(ML1 > 0)
+        {
+            PORTE.2 = 0;
+            OCR0 = ML1; 
+        }
+        else if(ML1 < 0)
+        {
+            PORTE.2 = 1;
+            OCR0 = 255 + ML1;
+        }    
+        else
+        {
+            PORTE.2 = 1;
+            OCR0 = 255;
+        }        
+    ///////////////////
+    ML2 = -ML2;
+        if(ML2 > 0)
+        {
+            PORTD.5 = 0;
+            OCR1A = ML2; 
+        }
+        else if(ML2 < 0)
+        {
+            PORTD.5 = 1;
+            OCR1A = 255 + ML2;
+        }
+        else
+        {
+            PORTD.5 = 1;
+            OCR1A = 255;
+        } 
+    ///////////////////    
+        if(MR2 > 0)
+        {
+            PORTD.6 = 0;
+            OCR1B = MR2; 
+        }
+        else if(MR2 < 0)
+        {
+            PORTD.6 = 1;
+            OCR1B = 255 + MR2;
+        }
+        else
+        {
+            PORTD.6 = 1;
+            OCR1B = 255;
+        }  
+    ///////////////////
+        if(MR1 > 0)
+        {
+            PORTD.7 = 0;
+            OCR2 = MR1; 
+        }
+        else if(MR1 < 0)
+        {
+            PORTD.7 = 1;
+            OCR2 = 255 + MR1;
+        }    
+        else
+        {
+            PORTD.7 = 1;
+            OCR2 = 255;
+        } 
+    }
+
+void read_sensekaf()
+    { 
+        int ii,t;
+        sk[0]=7;
+        sk[1]=6;
+        sk[2]=0;
+        sk[3]=5;
+        sk[4]=4;
+        sk[5]=3;
+        sk[6]=1;
+        sk[7]=2;
+        sk[8]=9;
+        sk[9]=8;
+        sk[10]=10;
+        sk[11]=15;
+        sk[12]=11;
+        sk[13]=13;
+        sk[14]=12;
+        sk[15]=14;
+        #asm("wdr");
+        for(ii=0;ii<=15;ii++)
+        { 
+            PORTA.0 = sk[ii]%2;
+            PORTA.1 = (sk[ii]/2)%2;
+            PORTA.2 = (sk[ii]/4)%2;
+            PORTA.3 = (sk[ii]/8)%2;
+            ss[ii] = read_adc(7);
+        }
+              
+             /////////////////////red
+       
+    // ss[1]-=80;
+    // ss[3]-=50;
+    // ss[6]-=40;
+    // ss[7]-=40;
+    // ss[8]-=40;
+    // ss[11]+=40;
+    // ss[13]-=50;
+    // ss[14]-=70;
+    // ss[15]+=20;
+    //   
+    //   
+       ///////////////// 
+       
+    if(PINE.6==1){
+        for(t=0;t<=15;t++){
+            f[t]=ss[t];
+        }
+    }     
+    
+    for(t=0;t<=15;t++){
+        if((f[t]-ss[t]) > 100) sss[t]=f[t]-ss[t];
+        else sss[t]=0; 
+        if(sss[sensek]<sss[t]) sensek=t;
+    }       
+    
+       //LCD(12,1,sss[sensek]);
+       #asm("wdr"); 
+       for(t=0;t<=15;t++)
+          {  
+            if(sss[t]>0) sss[t]=1;
+          }  
+            
+        
+       if(sss[0]== 1 || sss[1]== 1 || sss[2]== 1 || sss[3]== 1 || sss[4]== 1 || sss[5]== 1 || sss[6]== 1 || sss[7]== 1 || sss[8]== 1 || sss[9]== 1 || sss[10]== 1 ||
+        sss[11]== 1 || sss[12]== 1 || sss[13]== 1 || sss[14]== 1 || sss[15]== 1) or=1;
+        else or=0;
+        
+       // LCD(12,1,or);   
+       
+        //LCD(7,1,sensek);
+        //LCD(10,1,sss[sensek]);
+        if(sss[13]==1 || sss[14]==1 || sss[15]==1)  backkaf=1;
+        else backkaf=0;
+        if(sss[5]==1 || sss[6]==1 || sss[7]==1)  chapkaf=1;
+        else chapkaf=0;
+        if(sss[8]==1 || sss[9]==1 || sss[10]==1)  rastkaf=1;
+        else rastkaf=0;
+        if(sss[0]==1 || sss[1]==1 || sss[3]==1)  frontkaf=1;
+        else frontkaf=0;  
+       
+       }
+
+void readsensor()
+    {
+        int i=0,t=0;
+        sense=0;
+        sense2=0;
+        for(i=0;i<=15;i++)
+        {
+            PORTA.0 = i%2;
+            PORTA.1 = (i/2)%2;
+            PORTA.2 = (i/4)%2;
+            PORTA.3 = (i/8)%2;
+            s[i] = read_adc(6);
+        }
+        
+        #asm("wdr"); 
+        for(t=0;t<=15;t++)
+        {
+           if(s[sense]>s[t]) sense=t;
+        }
+              
+        
+        
+        //s[0]-=50;
+            
+        s[sense]+=1000;
+        for(t=0;t<=15;t++)
+        {
+           if(s[sense2]>s[t]) sense2=t;
+        }
+        s[sense]-=1000;
+          
+        
+        sense = sense*2;
+        sense2=sense2*2;
+          
+        if(abs(s[sense/2]-s[sense2/2]) < 50)
+        {     
+            if((sense == 0 && sense2 == 30)||(sense2 == 0 && sense == 30))
+            {
+                sense3 = 31;
+            }  
+            else
+            {
+                sense3 = (sense +sense2)/2;
+            }
+             maxValue=(s[sense/2]+s[sense2/2])/2;  
+             #asm("wdr");
+        }                               
+        else
+        {
+            sense3 = sense;
+            maxValue=s[sense/2]; 
+            #asm("wdr");
+        }    
+        maxNum=sense3;
+        
+        if(maxNum==16 && s[15]<170 && s[1]<170) maxNum=0; 
+         
+        senseShoot1=read_adc(4);
+        senseShoot2=read_adc(5);
+        if(senseShoot1>230 || senseShoot2>230)  shootSense=1;
+        else   shootSense=0;
+    }      
+
+void move(float zavie,float f)
+    {
+       float a,b;
+        char ch[20];                                   
+        if(zavie==90) zavie += th_err;
+        else   zavie += th_err2;
+        a=255*f*(cos((3.14/180)*zavie)+sin((3.14/180)*zavie));
+        b=255*f*(cos((3.14/180)*zavie)-sin((3.14/180)*zavie));
+        motor(a + w_err,-b + w_err,-a + w_err,b + w_err);
+        #asm("wdr");
+    }         
+
+#define pFollow PID(3.5,0,3.2,0,1)
+float rFollow=0.5;
+#define pMakoos PID(2,0,1,0,1)
+#define rOut 0.6
+#define rMakoos 0.3
+void readcompass()
+    {                                                      
+        cmp = compass_read(1)-c;                                                           
+        if(cmp<-128)    cmp += 255;  
+        else if(cmp>128)    cmp -= 255; 
+        #asm("wdr");
+    } 
+
+void readultra()
+    {    
+        chap = (read_adc(0)-160)/4;
+        rast = (read_adc(1)-160)/4;
+        vasat = (read_adc(2)-160)/4;
+        #asm("wdr");
+    }
+
+void read_state()
+    {
+        #asm("wdr");
+        if(chap<52 && rast>83){
+            if(vasat<46) state=1;
+            else if(vasat<95) state=4;
+            else state=7;
+        }
+        else if(rast<52 && chap>83){
+            if(vasat<46) state=3;
+            else if(vasat<95) state=6;
+            else state=9;
+        } 
+        else{
+            if(vasat<46) state=2;
+            else if(vasat<95) state=5;
+            else state=8;
+        }
+    }  
+    
+void read_stateGk()
+    {
+        #asm("wdr");
+        if(vasat<27)
+        {   ///1,2,3 
+            if(chap<50 && rast>85) stategk=1;
+            else if(chap>85 && rast<50) stategk=3;
+            else stategk=2;      
+        }
+        else if(vasat<80)                                                        
+        {   ///4,5,6
+            if(chap<58 && rast>85) stategk=4;
+            else if(chap>85 && rast<58) stategk=6;
+            else stategk=5;         
+        }
+        else
+        {     //7,8,9
+            if(chap<58 && rast>85) stategk=7;
+            else if(chap>85 && rast<58) stategk=9;
+            else stategk=8;      
+        }
+    }
+
+void go_to_state()
+    {
+
+        outPID = pFollow; 
+        if(cmp <= 15 && cmp >= -15){
+            if(state==2) motor(0,0,0,0);
+            else if(state==1) move(0,0.4);
+            else if(state==3) move(180,0.4);
+            else if(state==4) move(320,0.4);
+            else if(state==5) move(270,0.4);
+            else if(state==6) move(230,0.4);
+            else if(state==7) move(305,0.4);
+            else if(state==8) move(270,0.4);
+            else if(state==9) move(235,0.4);
+            #asm("wdr"); 
+        }
+        else{
+            motor(0,0,0,0);
+        }
+    } 
+     
+void go_to_stategk()
+    {
+
+        outPID = pFollow;
+        if(cmp < 15 && cmp > -15){
+            if(stategk==2) motor(0,0,0,0);
+            else if(stategk==1) move(0,0.4);
+            else if(stategk==3) move(180,0.4);
+            else if(stategk==4) move(0,0.4);
+            else if(stategk==5) move(270,0.4);
+            else if(stategk==6) move(180,0.4);
+            else if(stategk==7) move(305,0.4);
+            else if(stategk==8) move(270,0.4);
+            else if(stategk==9) move(235,0.4); 
+        }
+        else{
+            motor(0,0,0,0);
+        }
+    }
+      
+void go_to_state5()
+{
+
+        outPID = pFollow; 
+        if(cmp < 15 && cmp > -15){
+            if(state==5) motor(0,0,0,0);
+            else if(state==1) move(45,0.4);
+            else if(state==2) move(90,0.4);
+            else if(state==3) move(135,0.4);
+            else if(state==4) move(0,0.4);
+            else if(state==6) move(180,0.4);
+            else if(state==7) move(305,0.4);
+            else if(state==8) move(270,0.4);
+            else if(state==9) move(225,0.4); 
+        }
+        else{
+            motor(0,0,0,0);
+        }
+
+
+
+
+    }
+
+void go_to_point(int x,int y)
+    {   
+        int delx,dely,rad;
+        double alfa;
+        outPID=pFollow;
+        if(chap > (x-10) && chap < (x+10) && vasat > (y-10) && vasat < (y+10))
+        {
+            motor(0,0,0,0);
+        }
+        else 
+        {
+            delx = (chap - x);
+            dely = (vasat - y);
+            rad = atan2(delx,dely); 
+            alfa = rad*(180/3.1415);
+            move(270-alfa,0.8); 
+        }
+    }
+
+void follow()
+    {
+        float sagToRuheGoshadetun = 0;
+        float reduce = 0.7,z;
+        static float M1Red = 0.4;     
+        int stp=0;    
+        sense=sense/2;
+        sagToRuheGoshadetun = ((200+minSense[sense]) - maxValue)/20;
+        if(sagToRuheGoshadetun < 0)
+            sagToRuheGoshadetun = 0;    
+        ////////////////////////////reduse
+        //rFollow = ((float)(maxValue - (minSense[sense]-40)))/950 + 0.3;
+        if(maxNum >= 8 && maxNum <= 24)
+            {
+                rFollow = 0.5;
+            }                
+        else if( maxNum != 0 && maxNum != 1 && maxNum != 31)
+            {
+                rFollow = 0.4;
+            }
+        else 
+        {
+            rFollow = 0.55;
+        }
+        
+        
+        if(maxValue > 200)
+        {
+            rFollow += 0.1;
+        } 
+        ////////////////////////////
+        #asm("wdr");            
+    
+    if((maxNum>=18 && maxNum<=24) || (maxNum>=8 && maxNum<=14)) rFollow -= 0.1;    
+        
+    /////////////////////////////////////////////////harkat ma'koos
+    if(maxNum >= 6  && maxNum <= 14 )    revFlag = 1;//restback                
+    if(maxNum >= 18 && maxNum <= 26)  revFlag = 2;//chapbck
+    if(maxNum <= 7 && maxNum >= 5 && revFlag==0)   revFlag=3;//rastjolo
+    if(maxNum >= 25 && maxNum <= 27 && revFlag==0)  revFlag=4;//chapjolo
+                   
+   
+    if(revFlag == 1 && (maxNum == 0 || maxNum ==1 || maxNum == 31) && timerMakoos==0)    
+    {
+           
+           for(step=1;step<=135;step++)
+            {
+                readcompass();  
+                outPID = pMakoos;
+                move(180,rMakoos); 
+                #asm("wdr");
+            }
+            revFlag = 0;
+            timerMakoos=70;
+            lcd_gotoxy(8,0); 
+            lcd_puts("aaaaaa");
+    }
+    else if(revFlag == 2 && (maxNum == 0 || maxNum ==1 || maxNum == 31) && timerMakoos==0)
+    {
+           
+           for(step=1;step<=135;step++)
+            {
+                readcompass();  
+                outPID = pMakoos;
+                move(0,rMakoos); 
+                #asm("wdr");
+            }
+            revFlag = 0;
+            timerMakoos=70;
+            lcd_gotoxy(8,0); 
+            lcd_puts("aaaaaaaa"); 
+    }  
+  
+ ///////////////////////////////////////////////do halat
+    if((maxNum>=6 && maxNum<=26)) followFlag=1;
+    if(((maxNum<=6 && maxNum>=1) || (maxNum>=26 && maxNum<=31)) && followFlag==0) followFlag=2;
+    ///////////
+        if(reduce > 0.8)
+            reduce = 0.8; 
+          
+        reduce=rFollow;     
+        outPID=pFollow;
+        
+        if(followFlag==2 && ((maxNum>=2 && maxNum<=6) || (maxNum>=26 && maxNum<=30))) rFollow-=0.3;
+                        
+        
+        
+        
+        //if(shootSense==1) move(90,0.5);                                   
+         if(maxNum == 0 || ((maxNum <2 || maxNum >30)&&(maxValue<120)) )
+        {            
+            //outPID=PID(2.5,0,15,0,0); 
+            if(maxValue < 120)
+            {
+            M1Red += 0.01; 
+            followFlag=0;
+            }      
+            move(90,M1Red);         
+            #asm("wdr");
+        }             
+        else if(maxNum == 1 || maxNum == 31)
+        {                
+            M1Red = 0.4;
+            if(maxNum==1) z=90-(11.25)*maxNum;
+            else if(maxNum==31) z=90-(11.25)*maxNum;
+            move(z, reduce);
+            #asm("wdr");    
+        }
+        else if(maxNum>=2 && maxNum<=4)
+        {
+            M1Red = 0.4;    
+            if(followFlag==1) z=90-(11.25)*maxNum - 10 - sagToRuheGoshadetun*1.2;
+            else if(followFlag==2)   z=90-(11.25)*maxNum - 7 - sagToRuheGoshadetun*2;
+            move(z, reduce);
+            #asm("wdr");
+        }
+        else if(maxNum>=5 && maxNum<=6)
+        {
+            M1Red = 0.4;    
+            if(followFlag==1) z=90-(11.25)*maxNum - 10 - sagToRuheGoshadetun*1.2;
+            else if(followFlag==2)   z=90-(11.25)*maxNum - 7 - sagToRuheGoshadetun*1.5;
+            move(z, reduce);
+            #asm("wdr");
+        }
+        else if(maxNum>=26 && maxNum<=28)
+        {
+            M1Red = 0.4;
+            if(followFlag==1)   z=90-(11.25)*maxNum  + 10  + sagToRuheGoshadetun*1.2; 
+            else if(followFlag==2)  z=90-(11.25)*maxNum  + 7  + sagToRuheGoshadetun*1; 
+            move(z, reduce); 
+            #asm("wdr");
+        }
+        else if(maxNum>=29 && maxNum<=30)
+        {
+            M1Red = 0.4;
+            if(followFlag==1)   z=90-(11.25)*maxNum  + 10  + sagToRuheGoshadetun*1.2; 
+            else if(followFlag==2)  z=90-(11.25)*maxNum  + 7  + sagToRuheGoshadetun*1.5; 
+            move(z, reduce); 
+            #asm("wdr");
+        }
+        else if(maxNum < 16)
+        {   
+            M1Red = 0.4;    
+            z=90-(11.25)*maxNum - 20 - sagToRuheGoshadetun*2;
+            move(z, reduce);
+            #asm("wdr");
+        }
+        else
+        {   
+            M1Red = 0.4;
+            z=90-(11.25)*maxNum  + 20  + sagToRuheGoshadetun*2; 
+            move(z, reduce); 
+            #asm("wdr");
+        }     
+        
+}        
+
+void followgk()
+    {
+       float sagToRuheGoshadetun = 0;
+        float reduce = 0.7,z;
+        sense=sense/2;
+        sagToRuheGoshadetun = ((200+minSense[sense]) - maxValue)/10;
+        if(sagToRuheGoshadetun < 0)
+            sagToRuheGoshadetun = 0;   
+        
+        #asm("wdr");            
+          
+        
+        /////////////////////////////harkat ma'koos 
+ 
+    ///////////////////////////////
+        if(reduce > 0.8)
+            reduce = 0.9; 
+                                                                                                                                 
+        reduce=0.6;  
+             
+        outPID=pFollow;
+        
+        if(maxNum == 0)
+        {                     
+            motor(0,0,0,0);         
+            #asm("wdr");
+        }
+        else if(maxNum < 16)
+        {       
+            z=90-(11.25)*maxNum - 25 - sagToRuheGoshadetun;
+            if(maxNum==2 || maxNum==3 || maxNum==4 || maxNum==1) z=0;
+            if(vasat<16)    z=0;
+            move(z, reduce);
+            #asm("wdr");
+        }
+        else
+        {   
+            z=90-(11.25)*maxNum  + 25  + sagToRuheGoshadetun; 
+            if(maxNum==30 || maxNum==29 || maxNum==28  || maxNum==31) z=180;
+            if(vasat<16)    z=180;
+            move(z, reduce); 
+            #asm("wdr");
+        }     
+    }
+
+void detectingOutLine()
+{
+    if(outCounter==0){
+    if(or == 1)
+    {
+        #asm("wdr");   
+        if((sss[0] == 1 || sss[1] == 1 || sss[3] == 1) && highFlag == 0)
+        {   // Front Sensor see
+            highFlag = 2;  
+        } 
+        else if((sss[13] == 1 || sss[14] == 1 || sss[15] == 1) && highFlag == 0)
+        {   // Back Sensor see
+            highFlag = 4;  
+        }                             
+        else if((sss[5] == 1 || sss[6] == 810 || sss[7] == 1 || sss[2]==1 || sss[11]==1) && highFlag == 0)
+        {   // Left Sensor see
+            highFlag = 1;  
+        }
+        else if((sss[8] == 1 || sss[9] == 1 || sss[10] == 1 || sss[4]==1 || sss[12]==1) && highFlag == 0)
+        {   // Right Sensor see
+            highFlag = 3;  
+        } 
+        
+    }
+    else
+    {
+        highFlag = 0;
+    }
+    } 
+    #asm("wdr");
+    if(highFlag!=0) highOut=highFlag;
+    if(maxValue>500) highOut=0;                                                                                                      
+}
+
+#define pOut PID(2.5,0,1.1,0,1) 
+#define pOutm PID(2.5,0,3.6,0,1)
+#define stepOut 100
+void notGoingOutRun()
+    {
+        int alfa2=0,sensor0,sensor1,sensor2,sensorm1,sensorm2;
+        
+//        LCD(0,0,rastkaf);
+//        LCD(2,0,chapkaf);
+//        LCD(0,1,frontkaf);
+//        LCD(2,1,backkaf);
+        
+           
+        #asm("wdr");
+        //////////////// Left  
+        if(highOut==1)
+        {  
+            if(highFlag==1 && outCounter==0)
+            {                                       
+                outCounter = 1; 
+                for(step=1;step<=stepOut;step++)
+                {   
+                    #asm("wdr");
+                    readcompass();
+                    outPID = pOut;
+                    read_sensekaf();
+                    if(((chapkaf==1 && backkaf==1) && (sss[4]==0))  ||  ((sss[11]==0) && (rastkaf==1 && frontkaf==1))){
+                    alfa2=45;
+                    outPID = pOutm;
+                    }
+                    else if(((chapkaf==1 && frontkaf==1) && (sss[12]==0))  ||  ((sss[2]==0) && (rastkaf==1 && backkaf==1))){
+                    alfa2=305;
+                    outPID=pOutm;
+                    }
+                    else alfa2=0;
+                    move(alfa2,rOut); 
+                    
+                } 
+                #asm("wdr");
+                time = 0;  
+                 
+            }         
+            if(outCounter == 1)
+            {
+                motor(0,0,0,0);
+                if(time == 0)
+                {  
+                    lastSensor = maxNum;;
+                    time++;         
+                }
+            }
+              
+            sensor0=lastSensor;
+            sensor1=lastSensor+1;
+            sensor2=lastSensor+2;
+            sensorm1=lastSensor-1;
+            sensorm2=lastSensor-2;  
+            
+            if(lastSensor==0){
+                sensorm1=31;
+                sensorm2=30;  
+            }  
+            else if(lastSensor==1){
+                sensorm2=31;  
+            }  
+            else if(lastSensor==31){
+                sensor1=0;
+                sensor2=1;  
+            }  
+            else if(lastSensor==30){
+                sensor2=0;  
+            }  
+            
+            if((maxNum != sensor0 && maxNum != sensor1 && maxNum != sensor2 && maxNum != sensorm1 && maxNum != sensorm2) || (maxNum>=0 && maxNum<=16))
+            {          
+                outCounter = 0;
+                if(highFlag==0) highOut=0;
+            }     
+        
+       } 
+        ///////////////// Right
+        else if(highOut==3)
+        {                                   
+            if(highFlag == 3 && outCounter==0)       
+            {                                                 
+                    outCounter = 1; 
+                    for(step=1;step<=stepOut;step++)
+                    {  
+                        #asm("wdr");
+                        readcompass();
+                        outPID = pOut; 
+                        read_sensekaf();  
+                        if(((rastkaf==1 && backkaf==1) && (sss[2]==0))  ||  ((sss[12]==0) && (chapkaf==1 && frontkaf==1))){
+                         alfa2=135;
+                         outPID=pOutm;
+                        }
+                        else if(((rastkaf==1 && frontkaf==1) && (sss[11]==0))  ||  ((sss[4]==0) && (chapkaf==1 && backkaf==1))){
+                         alfa2=225;
+                        outPID=pOutm;
+                        }
+                        else alfa2=180; 
+                        move(alfa2,rOut); 
+                        
+                    } 
+                    time = 0; 
+                    #asm("wdr");         
+            } 
+              
+            
+                     
+            if(outCounter == 1)
+            {
+                motor(0,0,0,0);
+                if(time == 0)
+                {  
+                    lastSensor = maxNum;;
+                    time++;         
+                }
+            }
+            
+            sensor0=lastSensor;
+            sensor1=lastSensor+1;
+            sensor2=lastSensor+2;
+            sensorm1=lastSensor-1;
+            sensorm2=lastSensor-2;   
+            
+            if(lastSensor==0){
+                sensorm1=31;
+                sensorm2=30;  
+            }  
+            else if(lastSensor==1){
+                sensorm2=31;  
+            }  
+            else if(lastSensor==31){
+                sensor1=0;
+                sensor2=1;  
+            }  
+            else if(lastSensor==30){
+                sensor2=0;  
+            }  
+                                                 
+            if((maxNum != sensor0 && maxNum != sensor1 && maxNum != sensor2 && maxNum != sensorm1 && maxNum != sensorm2) || (maxNum>=16 && maxNum<=31))
+            {          
+                outCounter = 0; 
+                if(highFlag==0) highOut=0;      
+            }     
+        } 
+        
+        ////////////////////// Front
+                                                                                             
+        else if(highOut==2)
+        {
+           
+            if(highFlag==2 && outCounter==0)
+            {                                                          
+                outCounter = 1; 
+                for(step=1;step<=stepOut;step++)
+                {
+                    #asm("wdr");
+                    readcompass(); 
+                    outPID = pOut;
+                    read_sensekaf();   
+                    if(((rastkaf==1 && frontkaf==1) && (sss[11]==0))  ||  ((sss[4]==0) && (chapkaf==1 && backkaf==1))){
+                     alfa2=225;
+                    outPID=pOutm;
+                    }
+                    else if(((chapkaf==1 && frontkaf==1) && (sss[12]==0))  ||  ((sss[2]==0) && (rastkaf==1 && backkaf==1))){
+                     alfa2=305;
+                    outPID=pOutm;
+                    }
+                    else alfa2=270;                      
+                    move(alfa2,rOut); 
+                    
+                } 
+                time = 0;  
+                #asm("wdr");
+                 
+            }         
+            if(outCounter == 1)
+            {
+                motor(0,0,0,0);
+                if(time == 0)
+                {  
+                    lastSensor = maxNum;;
+                    time++;         
+                }
+            }       
+                                        
+            if(maxNum != 0 && maxNum != 1 && maxNum != 2 && maxNum != 31 && maxNum != 30 && maxNum != 29 && maxNum != 3 && maxNum != 28 && maxNum != 4 && maxNum != 5 && maxNum != 27)
+            {          
+                outCounter = 0;
+                if(highFlag==0) highOut=0;
+            }     
+        } 
+      
+        /////////////////////// Back
+        
+        else if(highOut==4)
+        { 
+            if(highFlag==4 && outCounter==0)    
+            {                                                 
+                outCounter = 1; 
+                for(step=1;step<=stepOut;step++)
+                {
+                    #asm("wdr");
+                    readcompass();
+                    outPID = pOut; 
+                    read_sensekaf();                    
+                    if(((chapkaf==1 && backkaf==1) && (sss[4]==0))  ||  ((sss[11]==0) && (rastkaf==1 && frontkaf==1))){
+                     alfa2=45;
+                    outPID=pOutm;
+                    }
+                    else if(((rastkaf==1 && backkaf==1) && (sss[2]==0))  ||  ((sss[12]==0) && (chapkaf==1 && frontkaf==1))){
+                     alfa2=135;
+                    outPID=pOutm;
+                    }
+                    else alfa2=90;      
+                    move(alfa2,rOut); 
+                    
+                } 
+                time = 0;  
+                #asm("wdr");
+                 
+            }         
+            if(outCounter == 1)
+            {
+                motor(0,0,0,0);
+                if(time == 0)
+                {  
+                    lastSensor = maxNum;;
+                    time++;         
+                }
+            }                                      
+            if((maxNum != lastSensor && maxNum != lastSensor+1 && maxNum != lastSensor+2 && maxNum != lastSensor-1 && maxNum != lastSensor-2))
+            {          
+                outCounter = 0;
+                if(highFlag==0) highOut=0;
+            }             
+        }
+       
+       /////////////////////////////no ball
+        else if(highOut==0){
+        
+            if(highFlag==1)
+            {   
+ 
+                for(step=1;step<=70;step++)
+                {   
+                    #asm("wdr");
+                    readcompass();
+                    read_sensekaf();
+                    if(or==0) step=71;  
+                    outPID = pOut;
+                    move(0,rOut); 
+                    
+                }  
+                #asm("wdr");
+            }         
+            else if(highFlag == 3)       
+            {       
+
+                    for(step=1;step<=70;step++)
+                    { 
+                        #asm("wdr");
+                        readcompass();
+                        read_sensekaf();
+                        if(or==0) step=71;  
+                        outPID = pOut;
+                        move(180,rOut); 
+                        
+                    }  
+                 #asm("wdr");        
+            } 
+            
+            else  if(highFlag==2)
+            {              
+                for(step=1;step<=120;step++)
+                {
+                    #asm("wdr");
+                    readcompass();
+                    read_sensekaf();
+                    if(or==0) step=121;  
+                    outPID = pOut;
+                    move(270,rOut); 
+                    
+                } 
+                #asm("wdr");
+
+            } 
+            
+            else if(highFlag==4)
+            {           
+                for(step=1;step<=120;step++)
+                {   
+                    #asm("wdr");
+                    readcompass();
+                    read_sensekaf();
+                    if(or==0) step=121;  
+                    outPID = pOut;
+                    move(90,rOut); 
+                    
+                }  
+                #asm("wdr");
+   
+            }                 
+        
+        }
+    }
+
+void SHOOT()
+{
+    if(shootSense==1 && timershoot==0){
+    PORTD.4=1;
+    delay_ms(20);
+    PORTD.4=0;
+    timershoot=500;
+    }
+
+}
+
+void setCmp()
+{
+    if(PINE.3 == 1)
+    {                       
+        delay_ms(1000);
+        c = compass_read(1);
+    }
+}                      
+
+void goalKeeper()
+{
+    outPID = pFollow;    
+}
+    
+void executeGk()
+{
+    
+    if(maxValue>540){
+        outCounter=0;
+    }
+    #asm("wdr");
+    if(highFlag!=0) { // LDR is seen
+        notGoingOutRun();        
+    }
+    else 
+    {   
+                
+        if(maxValue < 550 && outCounter==0){   // Ball is seen
+            followgk();
+        } 
+        else if(maxValue>550 && outCounter==0){
+            motor(0,0,0,0);
+        }
+        else notGoingOutRun();     
+                           
+    }
+      
+}
+
+void kajkardan()
+{
+
+    #asm("wdr");    
+        if(((state==7 || state==4 || state==9 || state==6) && shootSense==1) || timer1>0)
+        {
+            Dcmp=(chap-rast)*0.48+(vasat-46)*0.29;
+            cmp+=Dcmp; 
+            timer1=100; 
+            if(timerMakoos>0) timerMakoos++;
+        }
+        if(shootSense==0) timer1=0; 
+
+}    
+
+void executeRobot()
+{
+
+    if(maxValue>600)
+    {
+        outCounter=0;
+        revFlag=0;
+    }
+      
+    #asm("wdr");
+    if(highFlag!=0) { // LDR is seen
+        notGoingOutRun();        
+    }
+    else 
+    {   
+        
+        if(maxValue < 540 && outCounter==0){   // Ball is seen
+            follow();
+        } 
+        else if(maxValue>540 && outCounter==0){
+        motor(0,0,0,0);
+        }
+        else notGoingOutRun();     
+                   
+    }  
+}
+
+void payinMain()
+{
+    // Declare your local variables here
+
+    // Input/Output Ports initialization
+    // Port A initialization
+    // Function: Bit7=In Bit6=In Bit5=In Bit4=In Bit3=Out Bit2=Out Bit1=Out Bit0=Out 
+    DDRA=(0<<DDA7) | (1<<DDA6) | (0<<DDA5) | (0<<DDA4) | (1<<DDA3) | (1<<DDA2) | (1<<DDA1) | (1<<DDA0);
+    // State: Bit7=T Bit6=T Bit5=T Bit4=T Bit3=0 Bit2=0 Bit1=0 Bit0=0 
+    PORTA=(0<<PORTA7) | (1<<PORTA6) | (0<<PORTA5) | (0<<PORTA4) | (0<<PORTA3) | (0<<PORTA2) | (0<<PORTA1) | (0<<PORTA0);
+
+    // Port B initialization
+    // Function: Bit7=Out Bit6=Out Bit5=Out Bit4=Out Bit3=In Bit2=In Bit1=In Bit0=In 
+    DDRB=(1<<DDB7) | (1<<DDB6) | (1<<DDB5) | (1<<DDB4) | (0<<DDB3) | (0<<DDB2) | (0<<DDB1) | (0<<DDB0);
+    // State: Bit7=0 Bit6=0 Bit5=0 Bit4=0 Bit3=T Bit2=T Bit1=T Bit0=T 
+    PORTB=(0<<PORTB7) | (0<<PORTB6) | (0<<PORTB5) | (0<<PORTB4) | (0<<PORTB3) | (0<<PORTB2) | (0<<PORTB1) | (0<<PORTB0);
+
+    // Port C initialization
+    // Function: Bit7=Out Bit6=Out Bit5=Out Bit4=Out Bit3=Out Bit2=Out Bit1=Out Bit0=Out 
+    DDRC=(1<<DDC7) | (1<<DDC6) | (1<<DDC5) | (1<<DDC4) | (1<<DDC3) | (1<<DDC2) | (1<<DDC1) | (1<<DDC0);
+    // State: Bit7=0 Bit6=0 Bit5=0 Bit4=0 Bit3=0 Bit2=0 Bit1=0 Bit0=0 
+    PORTC=(0<<PORTC7) | (0<<PORTC6) | (0<<PORTC5) | (0<<PORTC4) | (0<<PORTC3) | (0<<PORTC2) | (0<<PORTC1) | (0<<PORTC0);
+
+    // Port D initialization
+    // Function: Bit7=Out Bit6=Out Bit5=Out Bit4=Out Bit3=In Bit2=In Bit1=In Bit0=In 
+    DDRD=(1<<DDD7) | (1<<DDD6) | (1<<DDD5) | (1<<DDD4) | (0<<DDD3) | (0<<DDD2) | (0<<DDD1) | (0<<DDD0);
+    // State: Bit7=0 Bit6=0 Bit5=0 Bit4=0 Bit3=T Bit2=T Bit1=T Bit0=T 
+    PORTD=(0<<PORTD7) | (0<<PORTD6) | (0<<PORTD5) | (0<<PORTD4) | (0<<PORTD3) | (0<<PORTD2) | (0<<PORTD1) | (0<<PORTD0);
+
+    // Port E initialization
+    // Function: Bit7=In Bit6=In Bit5=In Bit4=In Bit3=In Bit2=Out Bit1=In Bit0=In 
+    DDRE=(0<<DDE7) | (0<<DDE6) | (0<<DDE5) | (0<<DDE4) | (0<<DDE3) | (1<<DDE2) | (0<<DDE1) | (0<<DDE0);
+    // State: Bit7=T Bit6=T Bit5=T Bit4=T Bit3=T Bit2=0 Bit1=T Bit0=T 
+    PORTE=(0<<PORTE7) | (0<<PORTE6) | (0<<PORTE5) | (0<<PORTE4) | (0<<PORTE3) | (0<<PORTE2) | (0<<PORTE1) | (0<<PORTE0);
+
+    // Port F initialization
+    // Function: Bit7=In Bit6=In Bit5=In Bit4=In Bit3=In Bit2=In Bit1=In Bit0=In 
+    DDRF=(0<<DDF7) | (0<<DDF6) | (0<<DDF5) | (0<<DDF4) | (0<<DDF3) | (0<<DDF2) | (0<<DDF1) | (0<<DDF0);
+    // State: Bit7=T Bit6=T Bit5=T Bit4=T Bit3=T Bit2=T Bit1=T Bit0=T 
+    PORTF=(0<<PORTF7) | (0<<PORTF6) | (0<<PORTF5) | (0<<PORTF4) | (0<<PORTF3) | (0<<PORTF2) | (0<<PORTF1) | (0<<PORTF0);
+
+    // Port G initialization
+    // Function: Bit4=In Bit3=In Bit2=In Bit1=In Bit0=In 
+    DDRG=(0<<DDG4) | (0<<DDG3) | (0<<DDG2) | (0<<DDG1) | (0<<DDG0);
+    // State: Bit4=T Bit3=T Bit2=T Bit1=T Bit0=T 
+    PORTG=(0<<PORTG4) | (0<<PORTG3) | (0<<PORTG2) | (0<<PORTG1) | (0<<PORTG0);
+
+    // Timer/Counter 0 initialization
+    // Clock source: System Clock
+    // Clock value: 16000.000 kHz
+    // Mode: Fast PWM top=0xFF
+    // OC0 output: Non-Inverted PWM
+    // Timer Period: 0.016 ms
+    // Output Pulse(s):
+    // OC0 Period: 0.016 ms Width: 0 us
+    ASSR=0<<AS0;
+    TCCR0=(1<<WGM00) | (1<<COM01) | (0<<COM00) | (1<<WGM01) | (0<<CS02) | (0<<CS01) | (1<<CS00);
+    TCNT0=0x00;
+    OCR0=0x00;
+
+    // Timer/Counter 1 initialization
+    // Clock source: System Clock
+    // Clock value: 16000.000 kHz
+    // Mode: Fast PWM top=0x00FF
+    // OC1A output: Non-Inverted PWM
+    // OC1B output: Non-Inverted PWM
+    // OC1C output: Disconnected
+    // Noise Canceler: Off
+    // Input Capture on Falling Edge
+    // Timer Period: 0.016 ms
+    // Output Pulse(s):
+    // OC1A Period: 0.016 ms Width: 0 us
+    // OC1B Period: 0.016 ms Width: 0 us
+    // Timer1 Overflow Interrupt: Off
+    // Input Capture Interrupt: Off
+    // Compare A Match Interrupt: Off
+    // Compare B Match Interrupt: Off
+    // Compare C Match Interrupt: Off
+    TCCR1A=(1<<COM1A1) | (0<<COM1A0) | (1<<COM1B1) | (0<<COM1B0) | (0<<COM1C1) | (0<<COM1C0) | (0<<WGM11) | (1<<WGM10);
+    TCCR1B=(0<<ICNC1) | (0<<ICES1) | (0<<WGM13) | (1<<WGM12) | (0<<CS12) | (0<<CS11) | (1<<CS10);
+    TCNT1H=0x00;
+    TCNT1L=0x00;
+    ICR1H=0x00;
+    ICR1L=0x00;
+    OCR1AH=0x00;
+    OCR1AL=0x00;
+    OCR1BH=0x00;
+    OCR1BL=0x00;
+    OCR1CH=0x00;
+    OCR1CL=0x00;
+
+    // Timer/Counter 2 initialization
+    // Clock source: System Clock
+    // Clock value: 16000.000 kHz
+    // Mode: Fast PWM top=0xFF
+    // OC2 output: Non-Inverted PWM
+    // Timer Period: 0.016 ms
+    // Output Pulse(s):
+    // OC2 Period: 0.016 ms Width: 0 us
+    TCCR2=(1<<WGM20) | (1<<COM21) | (0<<COM20) | (1<<WGM21) | (0<<CS22) | (0<<CS21) | (1<<CS20);
+    TCNT2=0x00;
+    OCR2=0x00;
+
+    // Timer/Counter 3 initialization
+    // Clock source: System Clock
+    // Clock value: Timer3 Stopped
+    // Mode: Normal top=0xFFFF
+    // OC3A output: Disconnected
+    // OC3B output: Disconnected
+    // OC3C output: Disconnected
+    // Noise Canceler: Off
+    // Input Capture on Falling Edge
+    // Timer3 Overflow Interrupt: Off
+    // Input Capture Interrupt: Off
+    // Compare A Match Interrupt: Off
+    // Compare B Match Interrupt: Off
+    // Compare C Match Interrupt: Off
+    TCCR3A=(0<<COM3A1) | (0<<COM3A0) | (0<<COM3B1) | (0<<COM3B0) | (0<<COM3C1) | (0<<COM3C0) | (0<<WGM31) | (0<<WGM30);
+    TCCR3B=(0<<ICNC3) | (0<<ICES3) | (0<<WGM33) | (0<<WGM32) | (0<<CS32) | (0<<CS31) | (0<<CS30);
+    TCNT3H=0x00;
+    TCNT3L=0x00;
+    ICR3H=0x00;
+    ICR3L=0x00;
+    OCR3AH=0x00;
+    OCR3AL=0x00;
+    OCR3BH=0x00;
+    OCR3BL=0x00;
+    OCR3CH=0x00;
+    OCR3CL=0x00;
+
+    // Timer(s)/Counter(s) Interrupt(s) initialization
+    TIMSK=(0<<OCIE2) | (0<<TOIE2) | (0<<TICIE1) | (0<<OCIE1A) | (0<<OCIE1B) | (0<<TOIE1) | (0<<OCIE0) | (0<<TOIE0);
+    ETIMSK=(0<<TICIE3) | (0<<OCIE3A) | (0<<OCIE3B) | (0<<TOIE3) | (0<<OCIE3C) | (0<<OCIE1C);
+
+    // External Interrupt(s) initialization
+    // INT0: Off
+    // INT1: Off
+    // INT2: Off
+    // INT3: Off
+    // INT4: Off
+    // INT5: Off
+    // INT6: Off
+    // INT7: Off
+    EICRA=(0<<ISC31) | (0<<ISC30) | (0<<ISC21) | (0<<ISC20) | (0<<ISC11) | (0<<ISC10) | (0<<ISC01) | (0<<ISC00);
+    EICRB=(0<<ISC71) | (0<<ISC70) | (0<<ISC61) | (0<<ISC60) | (0<<ISC51) | (0<<ISC50) | (0<<ISC41) | (0<<ISC40);
+    EIMSK=(0<<INT7) | (0<<INT6) | (0<<INT5) | (0<<INT4) | (0<<INT3) | (0<<INT2) | (0<<INT1) | (0<<INT0);
+
+    // USART0 initialization
+    // USART0 disabled
+    UCSR0B=(0<<RXCIE0) | (0<<TXCIE0) | (0<<UDRIE0) | (0<<RXEN0) | (0<<TXEN0) | (0<<UCSZ02) | (0<<RXB80) | (0<<TXB80);
+
+    // USART1 initialization
+    // USART1 disabled
+    UCSR1B=(0<<RXCIE1) | (0<<TXCIE1) | (0<<UDRIE1) | (0<<RXEN1) | (0<<TXEN1) | (0<<UCSZ12) | (0<<RXB81) | (0<<TXB81);
+
+    // Analog Comparator initialization
+    // Analog Comparator: Off
+    // The Analog Comparator's positive input is
+    // connected to the AIN0 pin
+    // The Analog Comparator's negative input is
+    // connected to the AIN1 pin
+    ACSR=(1<<ACD) | (0<<ACBG) | (0<<ACO) | (0<<ACI) | (0<<ACIE) | (0<<ACIC) | (0<<ACIS1) | (0<<ACIS0);
+
+    // ADC initialization
+    // ADC Clock frequency: 125.000 kHz
+    // ADC Voltage Reference: AVCC pin
+    ADMUX=ADC_VREF_TYPE;
+    ADCSRA=(1<<ADEN) | (0<<ADSC) | (0<<ADFR) | (0<<ADIF) | (0<<ADIE) | (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
+    SFIOR=(0<<ACME);
+
+    // SPI initialization
+    // SPI disabled
+    SPCR=(0<<SPIE) | (0<<SPE) | (0<<DORD) | (0<<MSTR) | (0<<CPOL) | (0<<CPHA) | (0<<SPR1) | (0<<SPR0);
+
+    // TWI initialization
+    // TWI disabled
+    TWCR=(0<<TWEA) | (0<<TWSTA) | (0<<TWSTO) | (0<<TWEN) | (0<<TWIE);
+
+    // Watchdog Timer initialization
+    // Watchdog Timer Prescaler: OSC/2048k
+    #pragma optsize-
+    WDTCR=(1<<WDCE) | (1<<WDE) | (1<<WDP2) | (1<<WDP1) | (1<<WDP0);
+    WDTCR=(0<<WDCE) | (1<<WDE) | (1<<WDP2) | (1<<WDP1) | (1<<WDP0);
+    #ifdef _OPTIMIZE_SIZE_
+    #pragma optsize+
+    #endif
+
+    // Bit-Banged I2C Bus initialization
+    // I2C Port: PORTA
+    // I2C SDA bit: 5
+    // I2C SCL bit: 4
+    // Bit Rate: 100 kHz
+    // Note: I2C settings are specified in the
+    // Project|Configure|C Compiler|Libraries|I2C menu.
+    i2c_init();
+
+    // Alphanumeric LCD initialization
+    // Connections are specified in the
+    // Project|Configure|C Compiler|Libraries|Alphanumeric LCD menu:
+    // RS - PORTC Bit 0
+    // RD - PORTC Bit 1
+    // EN - PORTC Bit 2
+    // D4 - PORTC Bit 4
+    // D5 - PORTC Bit 5
+    // D6 - PORTC Bit 6
+    // D7 - PORTC Bit 7
+    // Characters/line: 16
+    lcd_init(16);
+}
+
+void LCDnamayesh()
+{
+
+        
+    
+    
+    
+    if(PINB.2==0){
+      LCD(10,0,maxNum);
+      LCD(13,0,maxValue); 
+      LCD(0,0,cmp); 
+      LCD(15,1,highFlag); 
+      LCD(14,1,highOut);
+      LCD(5,0,sensek);
+      LCD(7,0,sss[sensek]);
+      LCD(3,1,outCounter);
+    
+    }
+    else if(PINB.2==1){
+       LCD(0,0,chap);          
+       LCD(8,0,rast);
+       LCD(4,0,vasat);
+       LCD(0,1,state);  
+       LCD(5,1,shootSense);    
+       LCD(10,1,senseShoot2);
+       LCD(15,1,revFlag); 
+    
+    } 
+        
+    // 
+    //LCD(7,1,lastSensor); 
+    
+     
+     
+    
+     //LCD(15,1,highFlag); 
+     //LCD(14,1,highOut);
+     //LCD(0,0,sensek);
+     //LCD(4,0,sss[sensek]);
+     
+     
+     
+     
+     
+     //LCD(0,1,revFlag);
+     //
+     //LCD(0,1,followFlag);
+}
+
+void setSense(){
+
+int setFlag = 1;
+int i =0;
+step = 0;
+outPID=0;
+lcd_clear();
+    for(i = 0;i<16;i++)
+    {
+        minSense[i] = 200;
+    }
+
+pStatic=0;
+motor(0,0,0,0);
+while(setFlag)
+{
+    outPID = 0;
+    readsensor();
+    sense=sense/2;
+    LCD(0,0,sense);
+    LCD(5,0,minSense[step]);
+    LCD(0,1,step);    
+    if(maxValue<540){ 
+        if(sense == step)
+        {
+            motor(-20,-20,-20,-20);
+            if(s[sense]<minSense[sense]) minSense[step]=s[step];
+        }          
+        else
+        {
+            motor(0,0,0,0);  
+            if(sense == (step +1))
+                step ++; 
+        }                       
+        
+    }
+    else motor(0,0,0,0);  
+    if(sense == 0 && (step == 15))
+        setFlag =0; 
+}    
+
+}
+void main(void)
+{
+payinMain();
+
+while(0){
+ Calibrate();
+}
+
+while(0){
+read_sensekaf();
+        if(PINE.5 == 1)
+        {
+            delay_ms(1000);
+            stepk++;
+        }
+        LCD(10,1,ss[stepk]);
+        LCD(7,1,stepk);
+
+        if(stepk>15)    stepk=0;
+}
+
+
+while(0){
+readsensor();
+LCD(0,0,2);
+LCD(0,1,s[2]);
+}
+                  
+while (1)        
+{
+     
+    readcompass();
+    setCmp();
+    pStatic = PID(1.7,0,1,0,1);
+    readsensor();
+    readultra();
+    read_sensekaf();
+    read_state();
+    read_stateGk();
+    detectingOutLine();
+    LCDnamayesh();                
+    ///////////////////////////////////////////gyro
+        gyro1 = gyro_read(71);
+        gyro2 = gyro_read(72);
+        gyro = (gyro1*256 + gyro2)/-500;
+    //////////////////////////////////////////////////////moteghayyer 
+    timerMakoos--;   
+    if(timerMakoos<0) timerMakoos=0;
+        
+    timer1--;
+    timer2--;
+    timershoot--;
+    if(timer1<0) timer1=0;
+    if(timer2<0) timer2=0;      
+    if(timershoot<0) timershoot=0;
+   ///////////////////////////////////////////////////////////////////execute  
+    // if(cmp>-30 && cmp<30)  executeRobot();
+    // else motor(0,0,0,0);
+    //executeGk();
+    //outPID=PID(10,0,2,0,1); 
+    //kajkardan();
+    executeRobot(); 
+    /////////////////////////////////////////////////////////////////////test
+//    if(maxValue<600) follow();
+//    else{
+//        motor(0,0,0,0);    
+//        revFlag=0;
+//        followFlag=0;
+//    }
+  
+
+//outPID=PID(5,0,2,0,1);
+//pStatic=0;
+//move(90,0.4);  
+               
+    #asm("wdr");           
+   //  if((maxNum==0 || maxNum==1 || maxNum==31)&& maxValue<200 ) PORTA.6=0;
+   //  else PORTA.6=1;
+   // if(s[0]<50) PORTA.6=0;    
+
+    if(PINE.5==1){ 
+        setSense();
+    }
+    
+    
+    if(counter > 20)
+    {                
+        lcd_clear();
+        counter = 0;
+    }
+    else
+        counter++;
+}   
+}
+/////////////////////////////////////////////////////////         
