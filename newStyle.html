@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html dir='rtl' lang='fa-IR'>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>در حال انتقال به صفحه دانلود</title>
+<meta http-equiv="refresh" content="5;URL=https://www.bing.com/">
+<script>
+function timing(){
+ele = document.getElementById('url_timing');
+ele.innerHTML = ele.innerHTML -1;
+if(ele.innerHTML!=0){
+setTimeout("timing()",1000)
+}else{
+document.getElementById("tim").setAttribute("href" ,'https://www.bing.com/')
+document.getElementById("tim").style.cursor = "pointer"
+}
+}
+setTimeout("timing()",1000)
+</script>
+<style>
+*{margin:0px;padding:0px;text-decoration:none;font-family:'BYekan';}
+body{
+	direction:rtl;
+	background: linear-gradient(114deg ,#F8FF16 ,#0074FF ,#006cf8,  #e1f800, #006cf8, #f80070, #FFBB11 , #64EF52 , #0074FF);
+	background-size: 1000% 1000%;
+	-webkit-animation: AnimationName 30s ease infinite;
+	-moz-animation: AnimationName 30s ease infinite;
+	animation: AnimationName 29s ease infinite;
+}
+@-webkit-keyframes AnimationName {
+    0%{background-position:99% 0%}
+    50%{background-position:2% 100%}
+    100%{background-position:99% 0%}
+}
+@-moz-keyframes AnimationName {
+    0%{background-position:99% 0%}
+    50%{background-position:2% 100%}
+    100%{background-position:99% 0%}
+}
+@keyframes AnimationName { 
+    0%{background-position:99% 0%}
+    50%{background-position:2% 100%}
+    100%{background-position:99% 0%}
+}
+
+@font-face{
+	font-family:'BYekan';
+	src:url('Fonts/BYekan.eot?#') format('eot'),
+	  url('Fonts/BYekan.woff') format('woff'),
+	  url('Fonts/BYekan.ttf') format('truetype');
+}
+#titel{margin-top:70px;font-size:36px;color:#FFFFFF;font-family:'BYekan';text-shadow:-1px -1px 1px #000,1px 1px 1px #000;}
+#content{font-size:20px;color:#FFFFFF;font-family:'BYekan';text-shadow:-1px -1px 1px #000,1px 1px 1px #000;}
+#content2{margin-top:10px;font-size:16px;color:#FFFFFF; font-family:'BYekan';text-shadow:-1px -1px 1px #000,1px 1px 1px #000;}
+#btn{margin-top:20px;text-decoration:none;}
+#btn a
+{
+	max-width:600px;
+	-moz-box-shadow:inset -2px 1px 19px -7px #3dc21b;
+	-webkit-box-shadow:inset -2px 1px 19px -7px #3dc21b;
+	box-shadow:inset -2px 1px 19px -7px #3dc21b;
+	background-color:#25de5e;
+	-moz-border-radius:26px;
+	-webkit-border-radius:26px;	
+	border-radius:26px;
+	border:2px solid #14a841;
+	cursor:pointer;
+	color:#ffffff;
+	font-size:36px;
+	padding:9px 24px;
+	font-family:'BYekan';
+	border-right: 10px solid #14a841;
+	border-left: 10px solid #14a841;
+	color:#FFFFFF;
+	float:none;
+	text-decoration:none;
+	display:block;
+	text-shadow:-1px -1px 1px #000,1px 1px 1px #000;
+	text-align:center
+}
+#btn{display:block;}
+#btn a:hover{opacity: 0.8;}
+#btn a:active{position:relative;top:2px;}
+
+.text-center{text-align:center}
+@media screen and (max-width: 468px) {
+         img{max-width:268px;height:60px;margin:auto;display:block;}
+            }
+            @media screen and (min-width: 468px) {
+         img{width:468px;height:60px;margin:auto;display:block;}
+            }
+
+.center-block {
+  display: block;
+  margin-right: auto;
+  margin-left: auto;
+}
+</style>
+</head>
+<body>
+<div id="titel">
+<p class="text-center">در حال انتقال به صفحه دانلود تا <b id="url_timing">5</b> ثانیه دیگر</p>
+</div>
+<div id="btn">
+<a class="center-block" href="https://www.bing.com/">کلیک جهت تسریع انتقال به صفحه دانلود</a>
+</div>
+</body>
+</html>
